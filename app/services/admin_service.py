@@ -112,4 +112,10 @@ def count_presidents() -> int:
             WHERE r.role_name = 'President' AND u.is_active = 1
             """
         )
-        return cur.fetchone()["cnt"]
+        row = cur.fetchone()
+        if row is None:
+            return 0
+        try:
+            return int(row["cnt"])
+        except Exception:
+            return 0
