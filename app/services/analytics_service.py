@@ -68,8 +68,8 @@ def department_stats():
 
     results = []
     for r in rows:
-        total = r["total_tasks"] or 0
-        completed = r["completed_tasks"] or 0
+        total = int(r["total_tasks"] or 0)
+        completed = int(r["completed_tasks"] or 0)
         rate = round((completed / total) * 100, 1) if total else 0.0
         results.append(
             {
@@ -77,13 +77,12 @@ def department_stats():
                 "department_name": r["department_name"],
                 "total_tasks": total,
                 "completed_tasks": completed,
-                "overdue_tasks": r["overdue_tasks"] or 0,
+                "overdue_tasks": int(r["overdue_tasks"] or 0),
                 "completion_rate": rate,
             }
         )
     return results
-
-
+    
 def individual_stats(user_id: int | None = None):
     """If user_id is None, returns stats for all users (President view)."""
     query = """
