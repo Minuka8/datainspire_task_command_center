@@ -12,12 +12,12 @@ from app.database.db import get_cursor
 def overall_stats():
     with get_cursor() as cur:
         cur.execute("SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0")
-        total = cur.fetchone()["cnt"]
+        total = int(cur.fetchone()["cnt"] or 0)
 
         cur.execute(
             "SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0 AND status = 'Approved'"
         )
-        completed = cur.fetchone()["cnt"]
+        completed = int(cur.fetchone()["cnt"] or 0)
 
         cur.execute(
             """
@@ -26,17 +26,17 @@ def overall_stats():
             """,
             (date.today().isoformat(),),
         )
-        overdue = cur.fetchone()["cnt"]
+        overdue = int(cur.fetchone()["cnt"] or 0)
 
         cur.execute(
             "SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0 AND status = 'Submitted for Review'"
         )
-        pending_review = cur.fetchone()["cnt"]
+        pending_review = int(cur.fetchone()["cnt"] or 0)
 
         cur.execute(
             "SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0 AND status = 'In Progress'"
         )
-        in_progress = cur.fetchone()["cnt"]
+        in_progress = int(cur.fetchone()["cnt"] or 0)
 
     active = total - completed
     return {
@@ -47,7 +47,6 @@ def overall_stats():
         "pending_review": pending_review,
         "in_progress": in_progress,
     }
-
 
 def department_stats():
     with get_cursor() as cur:
