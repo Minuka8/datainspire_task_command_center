@@ -1,52 +1,49 @@
 """
 Analytics service: dashboard statistics, department performance,
-individual performance tracking. Designed so that future integration
-with the DatAInspire MERITRACK evaluation system can simply consume
-these same aggregate functions (or the performance_records table).
+individual performance tracking.
 """
 
 from datetime import date, datetime
 from app.database.db import get_cursor
 
 
+def _int(val):
+    """Safely convert Turso values to int."""
+    try:
+        return int(val or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def overall_stats():
     with get_cursor() as cur:
         cur.execute("SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0")
-        total = int(cur.fetchone()["cnt"] or 0)
+        total = _int(cur.fetchone()["cnt"])
+
+        cur.execute("SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0 AND status = 'Approved'")
+        completed = _int(cur.fetchone()["cnt"])
 
         cur.execute(
-            "SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0 AND status = 'Approved'"
-        )
-        completed = int(cur.fetchone()["cnt"] or 0)
-
-        cur.execute(
-            """
-            SELECT COUNT(*) AS cnt FROM tasks
-            WHERE is_deleted = 0 AND status != 'Approved' AND deadline < ?
-            """,
+            "SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0 AND status != 'Approved' AND deadline < ?",
             (date.today().isoformat(),),
         )
-        overdue = int(cur.fetchone()["cnt"] or 0)
+        overdue = _int(cur.fetchone()["cnt"])
 
-        cur.execute(
-            "SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0 AND status = 'Submitted for Review'"
-        )
-        pending_review = int(cur.fetchone()["cnt"] or 0)
+        cur.execute("SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0 AND status = 'Submitted for Review'")
+        pending_review = _int(cur.fetchone()["cnt"])
 
-        cur.execute(
-            "SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0 AND status = 'In Progress'"
-        )
-        in_progress = int(cur.fetchone()["cnt"] or 0)
+        cur.execute("SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0 AND status = 'In Progress'")
+        in_progress = _int(cur.fetchone()["cnt"])
 
-    active = total - completed
     return {
         "total_tasks": total,
-        "active_tasks": active,
+        "active_tasks": total - completed,
         "completed_tasks": completed,
         "overdue_tasks": overdue,
         "pending_review": pending_review,
         "in_progress": in_progress,
     }
+
 
 def department_stats():
     with get_cursor() as cur:
@@ -68,23 +65,21 @@ def department_stats():
 
     results = []
     for r in rows:
-        total = int(r["total_tasks"] or 0)
-        completed = int(r["completed_tasks"] or 0)
+        total = _int(r["total_tasks"])
+        completed = _int(r["completed_tasks"])
         rate = round((completed / total) * 100, 1) if total else 0.0
-        results.append(
-            {
-                "department_id": r["department_id"],
-                "department_name": r["department_name"],
-                "total_tasks": total,
-                "completed_tasks": completed,
-                "overdue_tasks": int(r["overdue_tasks"] or 0),
-                "completion_rate": rate,
-            }
-        )
+        results.append({
+            "department_id": r["department_id"],
+            "department_name": r["department_name"],
+            "total_tasks": total,
+            "completed_tasks": completed,
+            "overdue_tasks": _int(r["overdue_tasks"]),
+            "completion_rate": rate,
+        })
     return results
-    
+
+
 def individual_stats(user_id: int | None = None):
-    """If user_id is None, returns stats for all users (President view)."""
     query = """
         SELECT u.user_id, u.full_name, u.username, d.department_name,
                COUNT(t.task_id) AS total_assigned,
@@ -108,27 +103,24 @@ def individual_stats(user_id: int | None = None):
 
     results = []
     for r in rows:
-        total = r["total_assigned"] or 0
-        completed = r["completed"] or 0
+        total = _int(r["total_assigned"])
+        completed = _int(r["completed"])
         rate = round((completed / total) * 100, 1) if total else 0.0
-        results.append(
-            {
-                "user_id": r["user_id"],
-                "full_name": r["full_name"],
-                "username": r["username"],
-                "department_name": r["department_name"],
-                "total_assigned": total,
-                "completed": completed,
-                "overdue": r["overdue"] or 0,
-                "late_submissions": r["late_submissions"] or 0,
-                "completion_rate": rate,
-            }
-        )
+        results.append({
+            "user_id": r["user_id"],
+            "full_name": r["full_name"],
+            "username": r["username"],
+            "department_name": r["department_name"],
+            "total_assigned": total,
+            "completed": completed,
+            "overdue": _int(r["overdue"]),
+            "late_submissions": _int(r["late_submissions"]),
+            "completion_rate": rate,
+        })
     return results
 
 
 def avg_completion_time_days(user_id: int | None = None):
-    """Average days between date_assigned and approval_date for completed tasks."""
     query = """
         SELECT date_assigned, approval_date FROM tasks
         WHERE is_deleted = 0 AND status = 'Approved' AND approval_date IS NOT NULL
@@ -162,27 +154,19 @@ def avg_completion_time_days(user_id: int | None = None):
 def tasks_by_priority_breakdown():
     with get_cursor() as cur:
         cur.execute(
-            """
-            SELECT priority, COUNT(*) AS cnt FROM tasks
-            WHERE is_deleted = 0 AND status != 'Approved'
-            GROUP BY priority
-            """
+            "SELECT priority, COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0 AND status != 'Approved' GROUP BY priority"
         )
         rows = cur.fetchall()
-    return {r["priority"]: r["cnt"] for r in rows}
+    return {r["priority"]: _int(r["cnt"]) for r in rows}
 
 
 def tasks_by_status_breakdown():
     with get_cursor() as cur:
         cur.execute(
-            """
-            SELECT status, COUNT(*) AS cnt FROM tasks
-            WHERE is_deleted = 0
-            GROUP BY status
-            """
+            "SELECT status, COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0 GROUP BY status"
         )
         rows = cur.fetchall()
-    return {r["status"]: r["cnt"] for r in rows}
+    return {r["status"]: _int(r["cnt"]) for r in rows}
 
 
 def recent_activity(limit: int = 15):
@@ -202,11 +186,6 @@ def recent_activity(limit: int = 15):
 
 
 def snapshot_performance_records(period_label: str | None = None):
-    """
-    Recalculate and persist a snapshot into performance_records for all
-    active users. Intended to be called periodically (e.g. monthly) by
-    the President, and forms the bridge to future MERITRACK integration.
-    """
     if period_label is None:
         period_label = date.today().strftime("%Y-%m")
 
