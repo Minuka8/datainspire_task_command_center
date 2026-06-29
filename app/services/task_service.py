@@ -47,13 +47,12 @@ EXCO_ALLOWED_STATUS_TRANSITIONS = {
 
 
 def _generate_task_code(cur) -> str:
-    cur.execute("SELECT SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0")
+    cur.execute("SELECT MAX(task_id) AS max_id FROM tasks")
     row = cur.fetchone()
 
-    # Handle None / string safely
-    count = int(row["cnt"]) if row and row["cnt"] is not None else 0
+    next_id = int(row["max_id"]) + 1 if row and row["max_id"] is not None else 1
 
-    return f"TASK-{count + 1:04d}"
+    return f"TASK-{next_id:04d}"
 
 
 def create_task(
