@@ -14,6 +14,7 @@ ALLOWED_EXTENSIONS = {
     ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
     ".png", ".jpg", ".jpeg", ".gif", ".webp",
     ".txt", ".csv", ".zip",
+    ".html", ".htm"
 }
 
 MAX_FILE_SIZE_MB = 25
