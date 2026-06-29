@@ -47,8 +47,12 @@ EXCO_ALLOWED_STATUS_TRANSITIONS = {
 
 
 def _generate_task_code(cur) -> str:
-    cur.execute("SELECT COUNT(*) AS cnt FROM tasks")
-    count = cur.fetchone()["cnt"]
+    cur.execute("SELECT SELECT COUNT(*) AS cnt FROM tasks WHERE is_deleted = 0")
+    row = cur.fetchone()
+
+    # Handle None / string safely
+    count = int(row["cnt"]) if row and row["cnt"] is not None else 0
+
     return f"TASK-{count + 1:04d}"
 
 
